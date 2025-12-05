@@ -46,7 +46,6 @@ jobs:
           gh release create "$TAG" \
             --target dev \
             --title "Development Build (Unpackaged)" \
-            --notes "$(gh api repos/${GITHUB_REPOSITORY}/compare/$TAG..dev --jq '.commits[].commit.message')" \
             --prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
