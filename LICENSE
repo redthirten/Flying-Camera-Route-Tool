@@ -1,9 +1,9 @@
 Flying Camera Route Tool is a scripted No Limits 2 Roller Coaster Simulator (NL2)
 custom scenery object (SCO) for use in the NL2 software to aid in recording advanced camera movements.
-Copyright (c) 2023 David Wolfe (Red-Thirten)
+Copyright (c) 2026 David Wolfe (Red-Thirten)
 
 
-					GNU GENERAL PUBLIC LICENSE
+                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
@@ -638,7 +638,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     Flying Camera Route Tool is a scripted No Limits 2 Roller Coaster Simulator (NL2) 
     custom scenery object (SCO) for use in the NL2 software to aid in recording advanced camera movements.
-    Copyright (c) 2023 David Wolfe (Red-Thirten)
+    Copyright (c) 2026 David Wolfe (Red-Thirten)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -659,7 +659,7 @@ Also add information on how to contact you by electronic and paper mail.
 notice like this when it starts in an interactive mode:
 
     Flying Camera Route Tool
-    Copyright (c) 2023 David Wolfe (Red-Thirten)
+    Copyright (c) 2026 David Wolfe (Red-Thirten)
     This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.

@@ -10,20 +10,43 @@ jobs:
   build-release:
     name: Build Development Pre-Release
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # Needed for deleting/creating releases & tags
+
     steps:
-      - name: Delete existing tag and release
-        uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        with:
-          delete_release: true # default: false
-          tag_name: v.${{ github.ref_name }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set tag name
+        id: vars
+        run: echo "TAG=v.${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      # -----------------------------
+      # Delete existing release & tag
+      # -----------------------------
+      - name: Delete existing release (if any)
+        run: |
+          gh release delete "$TAG" --yes || echo "No existing release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-      - name: Create release
-        uses: actions/create-release@v1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete existing tag (if any)
+        run: |
+          git tag -d "$TAG" 2>/dev/null || true
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/$TAG" || echo "No existing tag"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v.${{ github.ref_name }} # Tag name CANNOT equal branch name
-          release_name: Development Build (Unpackaged)
-          prerelease: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------
+      # Create new prerelease
+      # -----------------------------
+      - name: Create development prerelease
+        run: |
+          gh release create "$TAG" \
+            --target dev \
+            --title "Development Build (Unpackaged)" \
+            --notes "$(gh api repos/${GITHUB_REPOSITORY}/compare/$TAG..dev --jq '.commits[].commit.message')" \
+            --prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
