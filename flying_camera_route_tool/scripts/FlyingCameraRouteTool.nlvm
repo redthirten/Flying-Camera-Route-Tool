@@ -15,6 +15,7 @@ import com.nolimitscoaster.TrackTriggerListener;
 import com.nolimitscoaster.Train;
 import com.nolimitscoaster.Button;
 import com.nolimitscoaster.Tools;
+import com.nolimitscoaster.ResourcePath;
 import nlvm.lang.Boolean;
 import nlvm.lang.Double;
 import nlvm.lang.Math;
@@ -23,8 +24,10 @@ import nlvm.math3d.Vector3f;
 import nlvm.math3d.Vector4f;
 import nlvm.util.Vector;
 
+import util.SceneObjectTools;
 import util.Matrix4x4fMath;
 import util.RayCast;
+import util.WaypointFile;
 
 public class FlyingCameraRouteTool extends Script implements TrackTriggerListener{
 	protected String SCRIPT_NAME = "Flying Camera Route Tool";						// Script name for debugging
@@ -55,7 +58,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	private float[] flyTimes;
 	private bool clicked, rotate, flying, preflight, postflight, skipCountdown, waitForTrigger, averageFlyTimes, firstInstructionsPrinted = false;
 	
-	public bool onInit(){ // On initialization of Play simulation
+	// On initialization of Play simulation
+	public bool onInit(){
 		// Make sure only one tool is placed
 		SceneObject[] scos = sim.getSceneObjectsWithName(SCRIPT_NAME);
 		if (scos.length != 1){
@@ -63,7 +67,11 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			return false;
 		}
 		// Get and assign local SCO
-		sco = getScoFromParentEntity();
+		sco = SceneObjectTools.getSceneObjectForEntityId(
+			sim,
+			getParentEntityId(),
+			SCRIPT_NAME
+		);
 		// Get fly time increment value from parameter
 		Double flyTimeIncrParam = sco.getDoubleParameter("fly_time_incr");
 		if (flyTimeIncrParam != null) FLY_TIME_INCR = Math.abs(flyTimeIncrParam.floatValue());
@@ -79,14 +87,20 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		// Get coaster trigger from parameter if specified
 		coasterTrigger = sco.getTrackTriggerParameter("coaster_trigger");
 		if (coasterTrigger != null) coasterTrigger.addTrackTriggerListener(this);
+		// Get waypoint file path from parameter if specified
+		ResourcePath waypointFilePath = sco.getResourcePathParameter("waypoint_file");
+		if (waypointFilePath != null){
+			waypoints = WaypointFile.decode(waypointFilePath);
+			curPreview = waypoints.size() - 1;
+		}
 		// Get and assign SCO elements
-		cameraStart = getElementOnScoForName(sco, CAMERA_ELEM_PREFIX + 0);
+		cameraStart = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 0, SCRIPT_NAME);
 		rayStart = new RayCast(cameraStart);
-		cameraA = getElementOnScoForName(sco, CAMERA_ELEM_PREFIX + 1);
+		cameraA = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 1, SCRIPT_NAME);
 		rayA = new RayCast(cameraA);
-		cameraB = getElementOnScoForName(sco, CAMERA_ELEM_PREFIX + 2);
+		cameraB = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 2, SCRIPT_NAME);
 		rayB = new RayCast(cameraB);
-		countdown = getElementOnScoForName(sco, COUNTDOWN_ELEM_NAME);
+		countdown = SceneObjectTools.getElementForName(sco, COUNTDOWN_ELEM_NAME, SCRIPT_NAME);
 		// Setup External Ride View
 		flyView = sim.createExternalRideView();
 		flyView.setLabel(SCRIPT_NAME);
@@ -101,23 +115,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		return true;
 	}
 	
-	private SceneObject getScoFromParentEntity(){ // Returns the SceneObject via the parent entity ID with error handling
-		SceneObject sco = sim.getSceneObjectForEntityId(getParentEntityId());
-		if (sco == null){
-			System.throwRuntimeException(SCRIPT_NAME + ": This script only works with NL2 scene objects");
-		}
-		return sco;
-	}
-	
-	private SceneObjectElement getElementOnScoForName(SceneObject sco, String name){ // Basically getElementForName() with error handling - Gratz to bestdani for idea
-        SceneObjectElement element = sco.getElementForName(name);
-        if (element == null){
-            System.throwRuntimeException(SCRIPT_NAME + ": Wrong 3d model loaded (Cannot find \"" + name + "\" element)");
-        }
-        return element;
-    }
-	
-	private void printInstructions(){ // Prints instructions and current settings to the console
+	// Prints instructions and current settings to the console
+	private void printInstructions(){
 		String averageFlyTimesStr = (averageFlyTimes) ? "On" : "Off";
 		System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 		System.out.println("\t\t\t\t\t\t\t\t\t" + SCRIPT_NAME + "  |  Fly Time: " + flyTime + "s  |  Average Fly Times: " + averageFlyTimesStr);
@@ -126,21 +125,24 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		System.out.println("| Delete last Waypoint: " + btnStr("t") + "  |  Delete specific Waypoint: Look at + " + btnStr("t") + "  |  Delete All Waypoints: " + btnStr("ctrl") + " + " + btnStr("t"));
 		System.out.println("| Cycle Waypoint previews: " + btnStr("ctrl") + " + " + btnStr("c") + " or " + btnStr("v") + "  |  Roll Waypoint: Look at + " + btnStr("shift") + " + " + btnStr("c") + " or " + btnStr("v"));
 		System.out.println("| Change Fly Time between Waypoints: " + btnStr("ctrl") + " + " + btnStr("shift") + " + " + btnStr("c") + " or " + btnStr("v"));
-		System.out.println("| Toggle Averaging of Fly Times: " + btnStr("ctrl") + " + " + btnStr("shift") + " + " + btnStr("t"));
+		System.out.println("| Toggle Averaging of Fly Times: " + btnStr("ctrl") + " + " + btnStr("shift") + " + " + btnStr("t") + "  |  Export Waypoints: " + btnStr("ctrl") + " + " + btnStr("shift") + " + " + btnStr("click"));
 		System.out.println("================== (Remember to close this console before recording) ==================");
 	}
 	
-	private String btnStr(String keyNameDefault){ // Given the default key name, returns the assigned keys/buttons as a string
+	// Given the default key name, returns the assigned keys/buttons as a string
+	private String btnStr(String keyNameDefault){
 		int button = -1;
 		if (keyNameDefault.equals("c")) button = Button.NEXT_CAR;
 		else if (keyNameDefault.equals("v")) button = Button.NEXT_SEAT;
 		else if (keyNameDefault.equals("t")) button = Button.NEXT_TRAIN;
 		else if (keyNameDefault.equals("ctrl")) button = Button.FLY_SLOWER;
 		else if (keyNameDefault.equals("shift")) button = Button.FLY_FASTER;
+		else if (keyNameDefault.equals("click")) button = Button.ACTION;
 		return Button.getAssignedKeyString(button);
 	}
 	
-	private void updatePreviewCameras(){ // Runs every frame to update preview cameras that need to be on screen
+	// Runs every frame to update preview cameras that need to be on screen
+	private void updatePreviewCameras(){
 		sco.setElementsVisible(false);
 		if (waypoints.size() >= 3){
 			setPreviewCameraProperties(cameraA, rayA, (Matrix4x4f) waypoints.elementAt(curPreview - 1), true);
@@ -156,7 +158,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		}
 	}
 	
-	private void setPreviewCameraProperties(SceneObjectElement camera, RayCast ray, Matrix4x4f matrix, bool visible){ // Updates the position, visibility, type, and ray of a given preview camera element
+	// Updates the position, visibility, type, and ray of a given preview camera element
+	private void setPreviewCameraProperties(SceneObjectElement camera, RayCast ray, Matrix4x4f matrix, bool visible){
 		camera.setMatrix(matrix); // Set position
 		camera.setVisible(visible); // Set visibility
 		ray.setPlanePoint(matrix.getTrans()); // Set ray
@@ -181,11 +184,13 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		}
 	}
 	
-	private bool isWaypointSoft(Matrix4x4f matrix){ // Returns if a waypoint matrix is soft
+	// Returns if a waypoint matrix is soft
+	private bool isWaypointSoft(Matrix4x4f matrix){
 		return (matrix.elemAt(0,3) == 1.f) ? true : false;
 	}
 	
-	private int getIndexOfWaypointInView(bool getLastIfNoView){ // Returns the index of the waypoint in view, or, if none in view, the last index or -1 depending on the passed boolean
+	// Returns the index of the waypoint in view, or, if none in view, the last index or -1 depending on the passed boolean
+	private int getIndexOfWaypointInView(bool getLastIfNoView){
 		if ( rayStart.isViewerLookingAt(0.5f) ){
 			return 0;
 		}
@@ -326,6 +331,17 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				waypoints.removeElement(waypoints.elementAt(getIndexOfWaypointInView(true)));
 				if (curPreview == waypoints.size()) curPreview--;
 			}
+		}
+		else if ( Button.isPressed(Button.FLY_SLOWER)
+				&& Button.isPressed(Button.FLY_FASTER)
+				&& Button.isPressed(Button.ACTION)
+		){ // If Ctrl + Shift + Click is pressed (Export Waypoints)
+			clicked = true;
+			System.err.println("\nCopy & save the following black text to a file (eg. `waypoints.txt`):");
+			System.err.println("_______________________________________________________________________\n");
+			System.out.print(WaypointFile.encode(waypoints));
+			System.err.println("_______________________________________________________________________");
+			System.err.println("\n^ Copy & save the black text above to a file (eg. `waypoints.txt`) ^");
 		}
 		
 		/* Fly View Handling */

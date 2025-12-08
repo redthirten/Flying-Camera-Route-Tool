@@ -1,0 +1,57 @@
+/**
+	SceneObject Tools Class NL2 Script
+	David Wolfe (Red-Thirten)
+	01/10/2024
+	Helper methods to get handles for various SceneObject related objects, with error handling.
+	Licensed under GNU GPLv3 - See LICENSE for more details.
+
+	Methods:
+		SceneObject getSceneObjectForEntityId(Simulator sim, int id, String scriptName)
+			- Returns the SceneObject associated with the given entity ID in the given simulation.
+			  If no object can be found, a runtime exception is thrown with the given script name.
+		
+		SceneObjectElement getElementForName(SceneObject sco, String elementName, String scriptName)
+			- Returns the SceneObjectElement on the given SCO for the given name.
+			  If no element can be found, a runtime exception is thrown with the given script name.
+		
+		SceneObjectLight getLightForName(SceneObject sco, String lightName, String scriptName)
+			- Returns the SceneObjectLight on the given SCO for the given name.
+			  If no light can be found, a runtime exception is thrown with the given script name.
+*/
+
+package util;
+
+import com.nolimitscoaster.Simulator;
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.SceneObjectElement;
+import com.nolimitscoaster.SceneObjectLight;
+
+public class SceneObjectTools{
+	public static SceneObject getSceneObjectForEntityId(Simulator sim, int id, String scriptName){
+		if (id == 0){
+			System.throwRuntimeException("[" + scriptName + "] This script only works if it has a parent entity");
+		}
+		
+		SceneObject sco = sim.getSceneObjectForEntityId(id);
+		if (sco == null){
+			System.throwRuntimeException("[" + scriptName + "] This script only works with NL2 scene objects");
+		}
+		return sco;
+	}
+
+	public static SceneObjectElement getElementForName(SceneObject sco, String elementName, String scriptName){
+		SceneObjectElement element = sco.getElementForName(elementName);
+		if (element == null){
+			System.throwRuntimeException("[" + scriptName + "] Wrong 3D model loaded (Cannot find \"" + elementName + "\" element)");
+		}
+		return element;
+	}
+
+	public static SceneObjectLight getLightForName(SceneObject sco, String lightName, String scriptName){
+		SceneObjectLight light = sco.getLightForName(lightName);
+		if (light == null){
+			System.throwRuntimeException("[" + scriptName + "] Script attached to wrong SCO (Cannot find \"" + lightName + "\" light)");
+		}
+		return light;
+	}
+}

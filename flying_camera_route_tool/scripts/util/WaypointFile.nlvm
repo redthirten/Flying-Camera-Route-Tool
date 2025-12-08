@@ -1,0 +1,79 @@
+/**Waypoint File NL2 Class**
+	Class Author: David Wolfe (Red-Thirten)
+	Date: 12/7/2025
+	Licensed under GNU GPLv3 - See LICENSE for more details.
+
+	Methods:
+		static String encode(Vector waypoints)
+            Returns formatted string of waypoint file contents.
+        
+        static Vector decode(ResourcePath filePath)
+            Returns Vector of waypoints given a waypoint file ResourcePath.
+	
+	Parameters:
+		All parameters must not be null.
+*/
+
+package util;
+
+import com.nolimitscoaster.Tools;
+import com.nolimitscoaster.ResourcePath;
+import nlvm.util.Vector;
+import nlvm.math3d.Matrix4x4f;
+
+public class WaypointFile{
+    public static String encode(Vector waypoints){
+        StringBuilder out = new StringBuilder();
+
+        for (int i = 0; i < waypoints.size(); i++){
+            Matrix4x4f m = (Matrix4x4f) waypoints.elementAt(i);
+            out.append("[" + m.toString() + "]\n");
+        }
+
+        return out.toString();
+    }
+
+    public static Vector decode(ResourcePath filePath){
+        Vector waypoints = new Vector();
+        String in = Tools.loadTextFileFromResource(filePath);
+        System.out.println("Importing waypoint file: " + filePath.toString());
+
+        int mStart = in.indexOf('[', 0);
+        int mEnd = in.indexOf(']', 0);
+        while (mStart >= 0 && mEnd >= 0){
+            parseMatrix(in.substring(mStart, mEnd + 1), waypoints);
+            in = in.substring(mEnd + 1);
+            mStart = in.indexOf('[', 0);
+            mEnd = in.indexOf(']', 0);
+        }
+
+        return waypoints;
+    }
+
+    private static void parseMatrix(String in, Vector out){
+        Matrix4x4f m = new Matrix4x4f();
+        for (int i = 0; i < 4; i++){
+            int rStart = in.indexOf('{', 0);
+            int rEnd = in.indexOf('}', 0);
+            parseRow(in.substring(rStart, rEnd + 1), m, i);
+            in = in.substring(rEnd + 1);
+        }
+
+        out.addElement(m);
+    }
+
+    private static void parseRow(String in, Matrix4x4f out, int row){
+        int fEnd;
+        in = in.substring(1); // Delete leading '{'
+        for (int col = 0; col < 4; col++){
+            if (col < 3){
+                fEnd = in.indexOf(' ', 0);
+            }
+            else{
+                fEnd = in.indexOf('}', 0);
+            }
+            out.setElemAt(col, row, Float.parseFloat(in.substring(0, fEnd)));
+            in = in.substring(fEnd + 1);
+        }
+    }
+}

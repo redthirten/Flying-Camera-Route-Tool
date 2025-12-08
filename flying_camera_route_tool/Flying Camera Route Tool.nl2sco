@@ -40,6 +40,13 @@
       <description>Leave as 0 to rotate the targeted waypoint Z-axis freely to any degree. Set to any degree to &quot;snap&quot; rotations in increments of that degree.</description>
       <label>Z Rotation Increment (Degrees):</label>
     </scriptparameter>
+    <scriptparameter>
+      <type filetype="any">resourcepath</type>
+      <defaultvalue></defaultvalue>
+      <id>waypoint_file</id>
+      <description>Select file to import waypoints from previous export. Leave blank to not import any waypoints.</description>
+      <label>Waypoint File to Import:</label>
+    </scriptparameter>
     <materialpath name="blue">materials/default_simple.nl2mat</materialpath>
     <materialpath name="camera_indicator">materials/camera_indicator.nl2mat</materialpath>
     <materialpath name="countdown">materials/countdown_numbers.nl2mat</materialpath>
