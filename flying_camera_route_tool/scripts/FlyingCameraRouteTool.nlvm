@@ -30,13 +30,20 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	private static final Vector4f START_COLOR = new Vector4f(0.f, 0.9f, 0.f, 1.f);	// Color of the start preview camera
 	private static final Vector4f HARD_COLOR = new Vector4f(0.75f, 0.f, 1.f, 1.f);	// Color of hard waypoint preview cameras
 	private static final Vector4f SOFT_COLOR = new Vector4f(0.f, 0.75f, 1.f, 1.f);	// Color of soft waypoint preview cameras
+	private static final int CAM_IND_START = 0;										// Camera indicator texture index for Start
+	private static final int CAM_IND_HARD_A = 1;									// Camera indicator texture index for Hard A
+	private static final int CAM_IND_HARD_B = 2;									// Camera indicator texture index for Hard B
+	private static final int CAM_IND_SOFT_A = 3;									// Camera indicator texture index for Soft A
+	private static final int CAM_IND_SOFT_B = 4;									// Camera indicator texture index for Soft B
+	private static final int CAM_IND_PREVIEW = 5;									// Camera indicator texture index for Preview
+	
 	private float FLY_TIME_INCR = 1.f;												// Default fly time increment (gets set once during init)
 	private float ROTATE_TIMEOUT = 0.001f;											// Default time before accepting another key press for rotation (gets set once during init)
 	private float ROTATION_INCR = (float) Math.toRadians(2);						// Default rotation increment in radians (gets set once during init)
 	private Matrix4x4f ORIGIN = new Matrix4x4f();									// Origin matrix (gets initialized once during init)
 	
 	private SceneObject sco;
-	private SceneObjectElement cameraStart, cameraA, cameraB, countdown;
+	private SceneObjectElement cameraStart, cameraA, cameraB, cameraPreview, countdown;
 	private ExternalRideView flyView;
 	private RayCast rayStart, rayA, rayB;
 	private Vector waypoints = new Vector();
@@ -93,6 +100,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		rayA = new RayCast(cameraA);
 		cameraB = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 2, SCRIPT_NAME);
 		rayB = new RayCast(cameraB);
+		cameraPreview = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 3, SCRIPT_NAME);
 		countdown = SceneObjectTools.getElementForName(sco, COUNTDOWN_ELEM_NAME, SCRIPT_NAME);
 		// Setup External Ride View
 		flyView = sim.createExternalRideView();
@@ -100,7 +108,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		flyView.setMorphingEnabled(false);
 		// Setup start camera element
 		cameraStart.setEntityColor(START_COLOR);
-		cameraStart.setTextureAnimationIndex(0);
+		cameraStart.setTextureAnimationIndex(CAM_IND_START);
 		// Move SCO to the world origin to allow SCO Elements to be moved absolutely
 		ORIGIN.initIdentity();
 		sco.setMatrix(ORIGIN);
@@ -160,19 +168,19 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		else if ( isWaypointSoft(matrix) ){ // Set color and indicator of camera based on type and preview position
 			camera.setEntityColor(SOFT_COLOR);
 			if ( camera.getName().equals(CAMERA_ELEM_PREFIX + "1") ){
-				camera.setTextureAnimationIndex(3);
+				camera.setTextureAnimationIndex(CAM_IND_SOFT_A);
 			}
 			else{
-				camera.setTextureAnimationIndex(4);
+				camera.setTextureAnimationIndex(CAM_IND_SOFT_B);
 			}
 		}
 		else{
 			camera.setEntityColor(HARD_COLOR);
 			if ( camera.getName().equals(CAMERA_ELEM_PREFIX + "1") ){
-				camera.setTextureAnimationIndex(1);
+				camera.setTextureAnimationIndex(CAM_IND_HARD_A);
 			}
 			else{
-				camera.setTextureAnimationIndex(2);
+				camera.setTextureAnimationIndex(CAM_IND_HARD_B);
 			}
 		}
 	}

@@ -18,6 +18,7 @@ Emission = Mul(tmp0, 0.35);</shadercore>
           <map>camera_indicators/hardB.jpg</map>
           <map>camera_indicators/softA.jpg</map>
           <map>camera_indicators/softB.jpg</map>
+          <map>camera_indicators/preview.jpg</map>
         </animmap>
         <tcgen mode="base"/>
       </texunit>
