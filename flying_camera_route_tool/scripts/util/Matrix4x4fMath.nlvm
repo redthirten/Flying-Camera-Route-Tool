@@ -1,29 +1,14 @@
 /**Matrix4x4f Math NL2 Class**
 	Class Author: David Wolfe (Red-Thirten)
-	Algorithm Authors: Martin John Baker (euclideanspace.com), Anthony (Prospero)
-	Date: 5/1/2023
-	License: CC0 1.0 Universal
+	Algorithm Authors:
+		Martin John Baker (euclideanspace.com),
+		Anthony (Prospero),
+		Ercan Akyuerek (geforcefan)
+	Date: 12/12/2025
+	License: GNU LGPLv3
 
-	Methods:
-		static void matrixToQuaternion(Matrix4x4f m, Vector4f q)
-			Converts the 3x3 rotation matrix of a Matrix4x4f to a quaternion, which will be stored in the given Vector4f.
-		
-		static void quaternionToMatrix(Vector4f q, Matrix4x4f m)
-			Converts a quaternion to a 3x3 rotation matrix, which will be stored in the given Matrix4x4f. Other values of the Matrix4x4f will not be modified.
-		
-		static float distance(Matrix4x4f mA, Matrix4x4f mB)
-			Returns the distance (in meters) between two Matrix4x4f's, based on their translation data.
-		
-		static void slerp(double t, Vector4f qa, Vector4f qb, Vector4f result)
-			Performs a spherical linear interpolation between quaternions `qa` and `qb`, and stores the resulting quaternion into `result`.
-		
-		static void lerpMatrix4x4f(float t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f result)
-			Performs a linear interpolation of the translation and rotation data of Matrix4x4f `a` and `b`, and stores the results into `result`.
-			The 4th row of `result` will be a direct copy of the input Matrix4x4f's, depending on the value of `t`: t < 0.5 = a[0..3][3] ; t >= 0.5 = b[0..3][3]
-			Any scaling data of the original Matrix4x4f's will be lost because the math requires values to be normalized.
-	
-	Parameters:
-		All parameters must not be null.
+	Description:
+		Helpful Matrix4x4f math functions.
 */
 
 package util;
@@ -31,10 +16,159 @@ package util;
 import nlvm.math3d.Vector3f;
 import nlvm.math3d.Vector4f;
 import nlvm.math3d.Matrix4x4f;
-import nlvm.lang.Math;
+import com.nolimitscoaster.Tools;
 
 public class Matrix4x4fMath{
-	public static void matrixToQuaternion(Matrix4x4f m, Vector4f q){
+	// PUBLIC METHODS //
+	
+	/**
+	 * Returns the distance between two Matrix4x4f's, based on their translation data.
+	 * 
+	 * @param a First Matrix4x4f.
+	 * @param b Second Matrix4x4f.
+	 * @return Distance between the two.
+	 */
+	public static float distance(Matrix4x4f a, Matrix4x4f b){
+		Vector3f tA = a.getTrans();
+		Vector3f tB = b.getTrans();
+		return tA.distance(tB);
+	}
+
+	/**
+	 * Sets the translation values in a Matrix4x4f.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param t Translation Vector3f.
+	 * @param m Matrix4x4f to set values in.
+	 */
+	public static void setTrans(Vector3f t, Matrix4x4f m){
+		m.setElemAt(3,0, t.x);
+		m.setElemAt(3,1, t.y);
+		m.setElemAt(3,2, t.z);
+	}
+
+	/**
+	 * Sets all nine rotation matrix values in a Matrix4x4f.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param m Matrix4x4f to set values in.
+	 */
+	public static void setRot(
+		float a1, float a2, float a3,
+		float b1, float b2, float b3,
+		float c1, float c2, float c3,
+		Matrix4x4f m
+	){
+		m.setElemAt(0,0, a1);
+		m.setElemAt(0,1, b1);
+		m.setElemAt(0,2, c1);
+		m.setElemAt(1,0, a2);
+		m.setElemAt(1,1, b2);
+		m.setElemAt(1,2, c2);
+		m.setElemAt(2,0, a3);
+		m.setElemAt(2,1, b3);
+		m.setElemAt(2,2, c3);
+	}
+
+	/**
+	 * Makes the rotation matrix of a Matrix4x4f orthonormal (ie. without scale).
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param m Matrix4x4f to normalize.
+	 */
+	public static void normalize(Matrix4x4f m){
+		Vector3f s = new Vector3f();
+		Tools.matrixToPitchHeadBankPosScale(m, null, null, s);
+
+		setRot(
+			m.elemAt(0,0) / s.x, m.elemAt(1,0) / s.y, m.elemAt(2,0) / s.z,
+			m.elemAt(0,1) / s.x, m.elemAt(1,1) / s.y, m.elemAt(2,1) / s.z,
+			m.elemAt(0,2) / s.x, m.elemAt(1,2) / s.y, m.elemAt(2,2) / s.z,
+			m
+		);
+	}
+
+	/**
+	 * Returns the scale stored in a Matrix4x4f.
+	 * 
+	 * @param m The Matrix4x4f.
+	 * @return Vector3f containing the 3D scale.
+	 */
+	public static Vector3f matrixToScale(Matrix4x4f m){
+		Vector3f s = new Vector3f();
+		Tools.matrixToPitchHeadBankPosScale(m, null, null, s);
+		return s;
+	}
+
+	/**
+	 * Encodes scale into the rotation matrix of a Matrix4x4f.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param s 3D scale Vector3f.
+	 * @param m Matrix4x4f to have scale added to. Rotation matrix must orthonormal (use normalize(m) first if not).
+	 */
+	public static void scaleToMatrix(Vector3f s, Matrix4x4f m){
+		setRot(
+			m.elemAt(0,0) * s.x, m.elemAt(1,0) * s.y, m.elemAt(2,0) * s.z,
+			m.elemAt(0,1) * s.x, m.elemAt(1,1) * s.y, m.elemAt(2,1) * s.z,
+			m.elemAt(0,2) * s.x, m.elemAt(1,2) * s.y, m.elemAt(2,2) * s.z,
+			m
+		);
+	}
+
+	/**
+	 * Converts the rotation matrix of a Matrix4x4f into Euler angles.
+	 * 
+	 * @param m The Matrix4x4f to convert.
+	 * @return Vector3f containing the pitch, yaw, and roll Euler angles. Angles will be in radians.
+	 */
+	public static Vector3f matrixToEuler(Matrix4x4f m){
+		Vector3f e = new Vector3f();
+		Tools.matrixToPitchHeadBankPos(m, e, null);
+		return e;
+	}
+
+	/**
+	 * Converts Euler angles into a Matrix4x4f rotation matrix.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param e Vector3f of pitch, yaw, and roll Euler angles. Angles must be in radians.
+	 * @param m The Matrix4x4f to store the rotation matrix. Existing scale will be preserved.
+	 */
+	public static void eulerToMatrix(Vector3f e, Matrix4x4f m){
+		// Save original matrix scale
+		Vector3f scale = matrixToScale(m);
+
+		float cx = (float) Math.cos((double) e.x);
+		float sx = (float) Math.sin((double) e.x);
+		float cy = (float) Math.cos((double) e.y);
+		float sy = (float) Math.sin((double) e.y);
+		float cz = (float) Math.cos((double) e.z);
+		float sz = (float) Math.sin((double) e.z);
+
+		setRot(
+			cy*cz + sy*sx*sz,	-cy*sz + sy*sx*cz, 	sy*cx,
+			cx*sz, 				cx*cz, 				-sx,
+			-sy*cz + cy*sx*sz, 	sy*sz + cy*sx*cz, 	cy*cx,
+			m
+		);
+
+		// Restore original matrix scale
+		scaleToMatrix(scale, m);
+	}
+
+	/**
+	 * Converts the rotation matrix of a Matrix4x4f to a unit quaternion.
+	 * 
+	 * @param m The Matrix4x4f containing the rotation matrix to convert.
+	 * @return Vector4f quaternion (no scale encoded).
+	 */
+	public static Vector4f matrixToQuaternion(Matrix4x4f m){
+		// Remove scale
+		m = m.dup();
+		normalize(m);
+
+		Vector4f q = new Vector4f();
 		float tr = m.elemAt(0,0) + m.elemAt(1,1) + m.elemAt(2,2);
 		
 		if (tr > 0){
@@ -65,9 +199,21 @@ public class Matrix4x4fMath{
 			q.y = (m.elemAt(1,2) + m.elemAt(2,1)) / S;
 			q.z = 0.25f * S;
 		}
+
+		return q;
 	}
 	
+	/**
+	 * Converts a quaternion into a Matrix4x4f rotation matrix.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param q The quaternion to convert.
+	 * @param m The Matrix4x4f to store the rotation matrix. Existing scale will be preserved.
+	 */
 	public static void quaternionToMatrix(Vector4f q, Matrix4x4f m){
+		// Save original matrix scale
+		Vector3f scale = matrixToScale(m);
+
 		float sqw = q.w * q.w;
 		float sqx = q.x * q.x;
 		float sqy = q.y * q.y;
@@ -93,15 +239,65 @@ public class Matrix4x4fMath{
 		tmp2 = q.x * q.w;
 		m.setElemAt(2,1, 2.f * (tmp1 + tmp2) * invs);
 		m.setElemAt(1,2, 2.f * (tmp1 - tmp2) * invs);
+
+		// Restore original matrix scale
+		scaleToMatrix(scale, m);
 	}
 	
-	public static float distance(Matrix4x4f mA, Matrix4x4f mB){
-		Vector3f tA = mA.getTrans();
-		Vector3f tB = mB.getTrans();
-		return tA.distance(tB);
+	/**
+	 * Performs a linear interpolation (LERP) of the translation data of two Matrix4x4f's.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param t Interpolation time (typically between 0...1).
+	 * @param a First Matrix4x4f.
+	 * @param b Second Matrix4x4f.
+	 * @param out The Matrix4x4f to store the result in.
+	 */
+	public static void lerpTrans(float t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f out){
+		// LERP translation
+		Vector3f aTrans = a.getTrans();
+		Vector3f bTrans = b.getTrans();
+		aTrans.lerp(t, aTrans, bTrans);
+		setTrans(aTrans, out);
 	}
 	
-	public static void slerp(double t, Vector4f qa, Vector4f qb, Vector4f result){
+	/**
+	 * Performs a Bézier interpolation (BERP) of the translation data of four Matrix4x4f's.
+	 * The interpolation is calculated using a cubic Catmull–Rom spline, which passes through
+	 * it's control points (unlike a generic B-spline).
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param t Interpolation time (typically between 0...1). t=0 yields b. t=1 yields c.
+	 * @param a First Matrix4x4f.
+	 * @param b Second Matrix4x4f.
+	 * @param c Third Matrix4x4f.
+	 * @param d Fourth Matrix4x4f.
+	 * @param out The Matrix4x4f to store the result in.
+	 */
+	public static void berpTrans(float t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f c, Matrix4x4f d, Matrix4x4f out){
+		Vector3f result = new Vector3f(
+			catmullRom(t, a.getTrans().x, b.getTrans().x, c.getTrans().x, d.getTrans().x),
+			catmullRom(t, a.getTrans().y, b.getTrans().y, c.getTrans().y, d.getTrans().y),
+			catmullRom(t, a.getTrans().z, b.getTrans().z, c.getTrans().z, d.getTrans().z)
+		);
+		setTrans(result, out);
+	}
+	
+	/**
+	 * Performs a spherical linear interpolation (SLERP) of the rotation data of two Matrix4x4f's.
+	 * Other values of the Matrix4x4f will not be modified.
+	 * 
+	 * @param t Interpolation time (typically between 0...1).
+	 * @param qa First Matrix4x4f.
+	 * @param qb Second Matrix4x4f.
+	 * @param out The Matrix4x4f to store the result in.
+	 */
+	public static void slerpRot(double t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f out){
+		// Convert rotation matrices to quaternions
+		Vector4f qa = matrixToQuaternion(a);
+		Vector4f qb = matrixToQuaternion(b);
+		Vector4f result = new Vector4f();
+
 		// Calculate angle between them
 		double cosHalfTheta = qa.w * qb.w + qa.x * qb.x + qa.y * qb.y + qa.z * qb.z;
 		if (cosHalfTheta < 0){ // addon fix
@@ -138,36 +334,69 @@ public class Matrix4x4fMath{
 		result.x = (qa.x * ratioA + qb.x * ratioB);
 		result.y = (qa.y * ratioA + qb.y * ratioB);
 		result.z = (qa.z * ratioA + qb.z * ratioB);
+
+		// Store SLERP result
+		quaternionToMatrix(result, out);
 	}
-	
-	public static void lerpMatrix4x4f(float t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f result){
-		// LERP translation
-		Vector3f aTrans = a.getTrans();
-		Vector3f bTrans = b.getTrans();
-		aTrans.lerp(t, aTrans, bTrans);
-		result.initTrans(aTrans);
-		
-		// SLERP rotation
-		Vector4f aQuat = new Vector4f();
-		Vector4f bQuat = new Vector4f();
-		Vector4f slerpQuat = new Vector4f();
-		matrixToQuaternion(a, aQuat);
-		matrixToQuaternion(b, bQuat);
-		slerp((double) t, aQuat, bQuat, slerpQuat);
-		quaternionToMatrix(slerpQuat, result);
-		
-		// Copy 4th row to result, based on t value
-		if (t < 0.5){
-			copyFourthRow(a, result);
-		}
-		else{
-			copyFourthRow(b, result);
-		}
+
+	/**
+	 * Adjusts the rotation matrix of a Matrix4x4f (based on its translation data) to "look at" a target point.
+	 * Other values of the Matrix4x4f will not be modified.
+	 */
+	public static void lookAt(Vector3f target, Matrix4x4f m){
+		Vector3f up = new Vector3f(0.f, 1.f, 0.f);
+		Vector3f eyeTargetDiff = m.getTrans();
+        eyeTargetDiff.sub(target);
+        eyeTargetDiff.normalize();
+                
+        Vector3f zAxis = eyeTargetDiff;
+        
+        Vector3f crossUpZAxis = new Vector3f();
+		crossUpZAxis.cross(up, zAxis);
+        crossUpZAxis.normalize();
+        
+        Vector3f xAxis = crossUpZAxis;
+        Vector3f yAxis = new Vector3f();
+		yAxis.cross(zAxis, xAxis);
+        
+        setRot(
+            xAxis.x, yAxis.x, zAxis.x,
+            xAxis.y, yAxis.y, zAxis.y,
+            xAxis.z, yAxis.z, zAxis.z,
+			m
+        );
 	}
-	
-	private static void copyFourthRow(Matrix4x4f a, Matrix4x4f b){ // Copies the 4th row of Matrix4x4f a to Matrix4x4f b
+
+	/**
+	 * Copies the 4th row from one Matrix4x4f to another.
+	 * Useful if data is stored in this otherwise wasted-memory row.
+	 * 
+	 * @param a The Matrix4x4f to copy from.
+	 * @param b The Matrix4x4f to copy to.
+	 */
+	public static void copyFourthRow(Matrix4x4f a, Matrix4x4f b){
 		for (int i = 0; i < 4; i++){
 			b.setElemAt(i,3, a.elemAt(i,3));
 		}
 	}
+	
+
+	// PRIVATE HELPER METHODS //
+	
+	/**
+	 * Performs a Catmull–Rom interpolation of four floats in one dimension.
+	 * A uniform, fixed tension of 0 is used.
+	 * 
+	 * @param t Interpolation time (typically between 0...1). t=0 yields b. t=1 yields c.
+	 * @param a First float.
+	 * @param b Second float.
+	 * @param c Third float.
+	 * @param d Fourth float.
+	 * @return Interpolated float.
+	 */
+	private static float catmullRom(float t, float a, float b, float c, float d){
+        float t2 = t * t;
+        float t3 = t * t * t;
+        return ((-t3 + 2 * t2 - t) * (a) + (3 * t3 - 5 * t2 + 2) * (b) + (-3 * t3 + 4 * t2 + t) * (c) + (t3 - t2) * (d)) / 2;
+    }
 }

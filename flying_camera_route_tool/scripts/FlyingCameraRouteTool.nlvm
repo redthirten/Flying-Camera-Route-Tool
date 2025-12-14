@@ -1,6 +1,6 @@
 /**Flying Camera Route Tool NL2 Script**
 	Author: Red-Thirten
-	Date: 7/18/2022
+	Date: 12/12/2025
 	License: GNU GPLv3 - See LICENSE for more details.
 	Description: 	Allows the user to setup and manage multiple camera waypoints based on their viewpoint during runtime
 					that they can later fly through for video recording purposes.
@@ -16,18 +16,11 @@ import com.nolimitscoaster.Train;
 import com.nolimitscoaster.Button;
 import com.nolimitscoaster.Tools;
 import com.nolimitscoaster.ResourcePath;
-import nlvm.lang.Boolean;
-import nlvm.lang.Double;
-import nlvm.lang.Math;
-import nlvm.math3d.Matrix4x4f;
-import nlvm.math3d.Vector3f;
-import nlvm.math3d.Vector4f;
+import nlvm.math3d.*;
 import nlvm.util.Vector;
 
-import util.SceneObjectTools;
-import util.Matrix4x4fMath;
-import util.RayCast;
-import util.WaypointFile;
+import obj.*;
+import util.*;
 
 public class FlyingCameraRouteTool extends Script implements TrackTriggerListener{
 	protected String SCRIPT_NAME = "Flying Camera Route Tool";						// Script name for debugging
@@ -361,7 +354,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				postflight = true;
 				timer = 0.f;
 			}
-			else if (timer >= flyTimes[curWaypoint]){ // Next waypoint
+			else if (timer >= flyTimes[curWaypoint]){ // Next segment
 				timer = 0.f;
 				// Store the current camera matrix (after LERP'ing) to be used as the next flight's starting waypoint
 				// because, due to small floating point calculation errors, the current matrix will slightly differ
@@ -369,8 +362,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				prevCameraMatrix = curCameraMatrix.dup();
 				curWaypoint++;
 			}
-			else{ // Flying to B waypoint
-				Matrix4x4f a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(curWaypoint) : prevCameraMatrix;
+			else{ // Flying segment
+				Matrix4x4f a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
 				Matrix4x4f b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
 				if (isWaypointSoft(a)){
 					if (isWaypointSoft(b)){ // Soft to soft

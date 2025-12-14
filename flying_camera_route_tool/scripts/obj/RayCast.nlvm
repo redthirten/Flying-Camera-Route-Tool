@@ -20,7 +20,7 @@
 		void setplanePoint(Vector3f planePoint) - Set object's plane point.
 */
 
-package util;
+package obj;
 
 import com.nolimitscoaster.NoLimits;
 import com.nolimitscoaster.Simulator;
