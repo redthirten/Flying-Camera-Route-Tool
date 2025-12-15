@@ -1,0 +1,87 @@
+/**Button Listener NL2 Class**
+	Class Author: David Wolfe (Red-Thirten)
+	Date: 12/14/2025
+	License: GNU GPLv3 - See LICENSE for more details.
+
+	Description:
+		An improved wrapper of com.nolimitscoaster.Button that allows for button press timeouts
+        and checking if multiple button are pressed at the same time.
+*/
+
+package obj;
+
+import com.nolimitscoaster.Button;
+
+public class ButtonListener{
+    // "Dictionary" of NL2 Button ints (with indices as keys) to binary flags.
+    // Index 0 is unused because NL2 Button ints start at 1.
+    private static final short[] buttonDict = {
+        0,
+        0b0000000000001,
+        0b0000000000010,
+        0b0000000000100,
+        0b0000000001000,
+        0b0000000010000,
+        0b0000000100000,
+        0b0000001000000,
+        0b0000010000000,
+        0b0000100000000,
+        0b0001000000000,
+        0b0010000000000,
+        0b0100000000000,
+        0b1000000000000
+    }
+    public static final short ACTION =            buttonDict[7];  // Left Mouse Button by default
+    public static final short CHANGE_VIEW_MODE =  buttonDict[11]; // Q key by default
+    public static final short FLY_FASTER =        buttonDict[12]; // Shift key by default
+    public static final short FLY_SLOWER =        buttonDict[13]; // Ctrl key by default
+    public static final short MOVE_BACKWARD =     buttonDict[2];  // S key by default
+    public static final short MOVE_DOWN =         buttonDict[6];  // X key by default
+    public static final short MOVE_FORWARD =      buttonDict[1];  // W key by default
+    public static final short MOVE_LEFT =         buttonDict[3];  // A key by default
+    public static final short MOVE_RIGHT =        buttonDict[4];  // D key by default
+    public static final short MOVE_UP =           buttonDict[5];  // Space key by default
+    public static final short NEXT_CAR =          buttonDict[9];  // C key by default
+    public static final short NEXT_SEAT =         buttonDict[10]; // V key by default
+    public static final short NEXT_TRAIN =        buttonDict[8];  // T key by default
+
+    private bool pressed = false;
+    private float timer, timeout = 0.f;
+    private short timeoutIgnoreButtons = 0b0000000000000;
+
+    public ButtonListener(float timeout){
+        this.timeout = timeout;
+    }
+
+    public ButtonListener(float timeout, short timeoutIgnoreButtons){
+        this(timeout);
+        this.timeoutIgnoreButtons = timeoutIgnoreButtons;
+    }
+
+    public short getPressed(){
+        short bitPressed = 0;
+        if (pressed) return bitPressed;
+
+        for (int i = 1; i < buttonDict; i++){
+            if (Button.isPressed(i)){
+                bitPressed |= buttonDict[i]; // Add flag to bitmask
+                // Bitwise check if flag does not appear in ignored button bitmask
+                if (timeoutIgnoreButtons & buttonDict[i] == 0){
+                    pressed = true;
+                }
+            }
+        }
+
+        return bitPressed;
+    }
+
+    public void onNextFrame(float tick){
+        if (pressed){
+            if (timer >= timeout){
+                timer = 0.f;
+                pressed = false;
+            }
+			timer = timer + tick;
+        }
+    }
+}
