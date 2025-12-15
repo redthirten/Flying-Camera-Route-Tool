@@ -233,23 +233,15 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		int index = getIndexOfWaypointInView(false);
 		if (index != -1){ // If player is looking at a waypoint...
 			Matrix4x4f waypointMatrix = (Matrix4x4f) waypoints.elementAt(index);
-			bool isSoft = isWaypointSoft(waypointMatrix);
-			// Temporarily set the SCO to the matrix of the waypoint to get it's rotation data,
-			// because SceneObjectElement doesn't have a getRotation() method and doing the math
-			// to manually rotate a rotation matrix is too friggen hard!
-			sco.setMatrix(waypointMatrix);
-			Vector3f waypointRotation = sco.getRotation();
+			Vector3f waypointEuler = Matrix4x4fMath.matrixToEuler(waypointMatrix);
 			if (left){
-				waypointRotation.z -= ROTATION_INCR;
+				waypointEuler.z -= ROTATION_INCR;
 			}
 			else{
-				waypointRotation.z += ROTATION_INCR;
+				waypointEuler.z += ROTATION_INCR;
 			}
-			sco.setRotation(waypointRotation); // Save the new rotation back to the SCO
-			waypointMatrix = sco.getMatrix(); // Save it's internally calculated matrix back to the waypoint matrix variable
-			if (isSoft) waypointMatrix.setElemAt(0,3, 1.f); // Reset the soft waypoint flag if needed, because `sco.setMatrix()` loses the flag
+			Matrix4x4fMath.eulerToMatrix(waypointEuler, waypointMatrix);
 			waypoints.setElementAt(waypointMatrix, index); // Write the new matrix back to the waypoint list
-			sco.setMatrix(ORIGIN); // Move the SCO back to the origin
 		}
 	}
 
