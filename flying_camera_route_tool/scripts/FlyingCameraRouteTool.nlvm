@@ -63,7 +63,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	private float flyTime = 3.f;
 	private float[] flyTimes;
 	private bool flying, preflight = false;
-	private bool skipCountdown, waitForTrigger, averageFlyTimes, firstInstructionsPrinted = false;
+	private bool skipCountdown, waitForTrigger, averageFlyTimes, linearMode, firstInstructionsPrinted = false;
 	
 	// On initialization of Play simulation
 	public bool onInit(){
@@ -379,7 +379,6 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	}
 
 	private void doWaypointFlights(float tick, bool preview){
-		// System.err.println("curWaypoint: " + curWaypoint + "  |  waypoints.size(): " + waypoints.size());
 		if (curWaypoint >= flyTimes.length){ // End flight
 			if (preview) curWaypoint = 0; // Restart flight
 			// Else, do nothing; wait for player to leave fly view
@@ -393,8 +392,23 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			curWaypoint++;
 		}
 		else{ // Flying segment
-			Matrix4x4f a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
-			Matrix4x4f b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
+			// Get relevant waypoints for segment
+			Matrix4x4f z = new Matrix4x4f();
+			Matrix4x4f a = new Matrix4x4f();
+			Matrix4x4f b = new Matrix4x4f();
+			Matrix4x4f c = new Matrix4x4f();
+			if (linearMode){
+				a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
+				b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
+			}
+			else{
+				z = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : (Matrix4x4f) waypoints.elementAt(curWaypoint - 1);
+				// a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
+				a = (Matrix4x4f) waypoints.elementAt(curWaypoint);
+				b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
+				c = (curWaypoint + 2 == waypoints.size()) ? (Matrix4x4f) waypoints.elementAt(curWaypoint + 1) : (Matrix4x4f) waypoints.elementAt(curWaypoint + 2);
+			}
+
 			// Calculate t
 			float t;
 			if (isWaypointSoft(a)){
@@ -413,10 +427,22 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 					t = (float) Tools.switchRampC2((double) flyTimes[curWaypoint], 1, (double) flyTimes[curWaypoint]/2, (double) timer); // Cubic -> Inverse Cubic
 				}
 			}
-			Matrix4x4fMath.lerpTrans(t, a, b, curCameraMatrix);
+
+			// Interpolate translation based on fly mode
+			if (linearMode){
+				Matrix4x4fMath.lerpTrans(t, a, b, curCameraMatrix);
+			}
+			else{
+				Matrix4x4fMath.berpTrans(t, z, a, b, c, curCameraMatrix);
+			}
+
+			// Interpolate/set rotation based on view mode
 			Matrix4x4fMath.slerpRot(t, a, b, curCameraMatrix);
+			
+			// Copy 4th row control values
 			Matrix4x4fMath.copyFourthRow(b, curCameraMatrix);
 
+			// Set resulting matrix
 			if (preview){
 				cameraPreview.setMatrix(curCameraMatrix);
 			}
@@ -425,7 +451,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			}
 		}
 		
-		if (preview || !waitForTrigger){ // If waiting for trigger, will keep timer at 0 to prevent start of flight
+		// If waiting for trigger, will keep timer at 0 to prevent start of flight
+		if (preview || !waitForTrigger){
 			timer = timer + tick;
 		}
 	}

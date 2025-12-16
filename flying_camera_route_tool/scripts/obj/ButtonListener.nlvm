@@ -13,16 +13,16 @@ package obj;
 import com.nolimitscoaster.Button;
 
 public class ButtonListener{
-    public static final int MOVE_FORWARD =      1;  // W key by default
-    public static final int MOVE_BACKWARD =     2;  // S key by default
-    public static final int MOVE_LEFT =         4;  // A key by default
-    public static final int MOVE_RIGHT =        8;  // D key by default
-    public static final int MOVE_UP =           16;  // Space key by default
-    public static final int MOVE_DOWN =         32;  // X key by default
-    public static final int ACTION =            64;  // Left Mouse Button by default
+    public static final int MOVE_FORWARD =      1;    // W key by default
+    public static final int MOVE_BACKWARD =     2;    // S key by default
+    public static final int MOVE_LEFT =         4;    // A key by default
+    public static final int MOVE_RIGHT =        8;    // D key by default
+    public static final int MOVE_UP =           16;   // Space key by default
+    public static final int MOVE_DOWN =         32;   // X key by default
+    public static final int ACTION =            64;   // Left Mouse Button by default
     public static final int NEXT_TRAIN =        128;  // T key by default
     public static final int NEXT_CAR =          256;  // C key by default
-    public static final int NEXT_SEAT =         512; // V key by default
+    public static final int NEXT_SEAT =         512;  // V key by default
     public static final int CHANGE_VIEW_MODE =  1024; // Q key by default
     public static final int FLY_FASTER =        2048; // Shift key by default
     public static final int FLY_SLOWER =        4096; // Ctrl key by default
