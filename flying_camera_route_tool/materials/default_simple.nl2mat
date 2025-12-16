@@ -6,7 +6,7 @@
       <shadercore>Emission = Mul(Color, 0.35);</shadercore>
       <transparency mode="opaque"/>
       <linearshading/>
-      <rgbgen mode="lighting"/>
+      <rgbgen mode="constlighting"/>
     </renderpass>
     <option noeditorrender="true"/>
     <option nonsolid="true"/>

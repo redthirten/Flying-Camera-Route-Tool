@@ -10,7 +10,7 @@ Result = tmp0;
 Emission = Mul(tmp0, 0.35);</shadercore>
       <transparency mode="opaque"/>
       <linearshading/>
-      <rgbgen mode="lighting"/>
+      <rgbgen mode="constlighting"/>
       <texunit>
         <animmap frequency="0">
           <map>camera_indicators/start.jpg</map>

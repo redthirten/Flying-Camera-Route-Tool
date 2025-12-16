@@ -26,9 +26,10 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	protected String SCRIPT_NAME = "Flying Camera Route Tool";						// Script name for debugging
 	protected String CAMERA_ELEM_PREFIX = "camera";									// Prefix of camera element names
 	protected String COUNTDOWN_ELEM_NAME = "countdown";								// Name of countdown element
-	private static final Vector4f START_COLOR = new Vector4f(0.f, 0.9f, 0.f, 1.f);	// Color of the start preview camera
-	private static final Vector4f HARD_COLOR = new Vector4f(0.75f, 0.f, 1.f, 1.f);	// Color of hard waypoint preview cameras
-	private static final Vector4f SOFT_COLOR = new Vector4f(0.f, 0.75f, 1.f, 1.f);	// Color of soft waypoint preview cameras
+	private static final Vector4f START_COLOR = new Vector4f(0.f, 0.9f, 0.f, 1.f);	// Color of start waypoint camera
+	private static final Vector4f HARD_COLOR = new Vector4f(0.75f, 0.f, 1.f, 1.f);	// Color of hard waypoint cameras
+	private static final Vector4f SOFT_COLOR = new Vector4f(0.f, 0.75f, 1.f, 1.f);	// Color of soft waypoint cameras
+	private static final Vector4f PREVIEW_COLOR = new Vector4f(0.8f, 0.f, 0.f, 0.5f);// Color of preview camera
 	private static final int CAM_IND_START = 0;										// Camera indicator texture index for Start
 	private static final int CAM_IND_HARD_A = 1;									// Camera indicator texture index for Hard A
 	private static final int CAM_IND_HARD_B = 2;									// Camera indicator texture index for Hard B
@@ -101,6 +102,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		if (waypointFilePath != null){
 			waypoints = WaypointFile.decode(waypointFilePath);
 			curPreview = waypoints.size() - 1;
+			calcFlyTimes();
 		}
 
 		// Get and assign SCO elements
@@ -122,9 +124,12 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		flyView.setLabel(SCRIPT_NAME);
 		flyView.setMorphingEnabled(false);
 
-		// Setup start camera element
+		// Setup preview cameras
 		cameraStart.setEntityColor(START_COLOR);
 		cameraStart.setTextureAnimationIndex(CAM_IND_START);
+		cameraPreview.setEntityColor(PREVIEW_COLOR);
+		cameraPreview.setTextureAnimationIndex(CAM_IND_PREVIEW);
+		curCameraMatrix.initIdentity(); // Prevents 0 scale issues
 
 		// Move SCO to the world origin to allow SCO Elements to be moved absolutely
 		Matrix4x4f origin = new Matrix4x4f();
@@ -162,26 +167,26 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	}
 	
 	// Runs every frame to update preview cameras that need to be on screen
-	private void updatePreviewCameras(){
+	private void updatePreviewCameras(float tick){
 		sco.setElementsVisible(false);
 		if (waypoints.size() >= 3){
-			setPreviewCameraProperties(cameraA, rayA, (Matrix4x4f) waypoints.elementAt(curPreview - 1), true);
+			setPreviewCameraProperties(cameraA, rayA, (Matrix4x4f) waypoints.elementAt(curPreview - 1));
 		}
 		if (waypoints.size() >= 2){
-			setPreviewCameraProperties(cameraB, rayB, (Matrix4x4f) waypoints.elementAt(curPreview), true);
+			setPreviewCameraProperties(cameraB, rayB, (Matrix4x4f) waypoints.elementAt(curPreview));
+			cameraPreview.setVisible(true);
+			doWaypointFlights(tick, true);
 		}
 		if (waypoints.size() >= 1){
-			setPreviewCameraProperties(cameraStart, rayStart, (Matrix4x4f) waypoints.elementAt(0), true);
+			setPreviewCameraProperties(cameraStart, rayStart, (Matrix4x4f) waypoints.elementAt(0));
 			flyView.setEnterWarpPoint(cameraStart.getAbsoluteTranslation(), 1.5f); // Update fly view start properties
-			curCameraMatrix = cameraStart.getAbsoluteMatrix();
-			flyView.setCameraMatrix(curCameraMatrix);
 		}
 	}
 	
 	// Updates the position, visibility, type, and ray of a given preview camera element
-	private void setPreviewCameraProperties(SceneObjectElement camera, RayCast ray, Matrix4x4f matrix, bool visible){
+	private void setPreviewCameraProperties(SceneObjectElement camera, RayCast ray, Matrix4x4f matrix){
 		camera.setMatrix(matrix); // Set position
-		camera.setVisible(visible); // Set visibility
+		camera.setVisible(true); // Set visible
 		ray.setPlanePoint(matrix.getTrans()); // Set ray
 		if ( camera.getName().equals(CAMERA_ELEM_PREFIX + "0") ) return; // Start camera element is static in type
 		else if ( isWaypointSoft(matrix) ){ // Set color and indicator of camera based on type and preview position
@@ -228,6 +233,24 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		}
 	}
 
+	private void calcFlyTimes(){
+		int segments = Math.max(waypoints.size()-1, 0);
+		flyTimes = new float[segments];
+		float totalDist = 0.f;
+		for (int i = 0; averageFlyTimes && i < segments; i++){ // Get total distance between waypoints if averaging fly times
+			totalDist += Matrix4x4fMath.distance((Matrix4x4f) waypoints.elementAt(i), (Matrix4x4f) waypoints.elementAt(i+1));
+		}
+		for (int i = 0; i < segments; i++){ // Set fly times between waypoints (dependent if static or averaged)
+			if (averageFlyTimes){
+				float dist = Matrix4x4fMath.distance((Matrix4x4f) waypoints.elementAt(i), (Matrix4x4f) waypoints.elementAt(i+1));
+				flyTimes[i] = dist / totalDist * (flyTime * flyTimes.length); // Dist % * Total Time
+			}
+			else{
+				flyTimes[i] = flyTime;
+			}
+		}
+	}
+
 	private void addWaypoint(bool soft){
 		Matrix4x4f view = new Matrix4x4f();
 		sim.getViewMatrix(view);
@@ -236,6 +259,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		}
 		waypoints.addElement(view);
 		curPreview = waypoints.size() - 1;
+		calcFlyTimes();
 	}
 
 	private void rollWaypoint(bool left){
@@ -283,11 +307,13 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			case ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER | ButtonListener.NEXT_CAR: // Ctrl + Shift + C
 				if (flyTime - FLY_TIME_INCR > 0){
 					flyTime -= FLY_TIME_INCR;
+					calcFlyTimes();
 				}
 				printInstructions();
 				break;
 			case ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER | ButtonListener.NEXT_SEAT: // Ctrl + Shift + V
 				flyTime += FLY_TIME_INCR;
+				calcFlyTimes();
 				printInstructions();
 				break;
 			
@@ -296,6 +322,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				if (curPreview > -1){ // Do nothing if no preview cameras
 					waypoints.removeElement(waypoints.elementAt(getIndexOfWaypointInView(true)));
 					if (curPreview == waypoints.size()) curPreview--;
+					calcFlyTimes();
 				}
 				break;
 			
@@ -303,6 +330,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			case ButtonListener.FLY_SLOWER | ButtonListener.NEXT_TRAIN: // Ctrl + T
 				waypoints.clear();
 				curPreview = -1;
+				calcFlyTimes();
 				break;
 
 			// Toggle waypoint softness
@@ -322,6 +350,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			// Toggle average fly times
 			case ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER | ButtonListener.NEXT_TRAIN: // Ctrl + Shift + T
 				averageFlyTimes = !averageFlyTimes;
+				calcFlyTimes();
 				printInstructions();
 				break;
 			
@@ -349,6 +378,58 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		rollButtons.onNextFrame(tick);
 	}
 
+	private void doWaypointFlights(float tick, bool preview){
+		// System.err.println("curWaypoint: " + curWaypoint + "  |  waypoints.size(): " + waypoints.size());
+		if (curWaypoint >= flyTimes.length){ // End flight
+			if (preview) curWaypoint = 0; // Restart flight
+			// Else, do nothing; wait for player to leave fly view
+		}
+		else if (timer >= flyTimes[curWaypoint]){ // Next segment
+			timer = 0.f;
+			// Store the current camera matrix (after LERP'ing) to be used as the next flight's starting waypoint
+			// because, due to small floating point calculation errors, the current matrix will slightly differ
+			// from the true next waypoint matrix. Just using the next waypoint matrix causes a jerk in animation.
+			prevCameraMatrix = curCameraMatrix.dup();
+			curWaypoint++;
+		}
+		else{ // Flying segment
+			Matrix4x4f a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
+			Matrix4x4f b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
+			// Calculate t
+			float t;
+			if (isWaypointSoft(a)){
+				if (isWaypointSoft(b)){ // Soft to soft
+					t = timer/flyTimes[curWaypoint]; // Linear: y = x
+				}
+				else{ // Soft to hard
+					t = (float) (-Math.pow((timer/flyTimes[curWaypoint])-1, 2) + 1); // Parabolic: y = -(x-1)^2 + 1
+				}
+			}
+			else{
+				if (isWaypointSoft(b)){ // Hard to soft
+					t = (timer/flyTimes[curWaypoint])*(timer/flyTimes[curWaypoint]); // Parabolic: y = x^2
+				}
+				else{ // Hard to hard
+					t = (float) Tools.switchRampC2((double) flyTimes[curWaypoint], 1, (double) flyTimes[curWaypoint]/2, (double) timer); // Cubic -> Inverse Cubic
+				}
+			}
+			Matrix4x4fMath.lerpTrans(t, a, b, curCameraMatrix);
+			Matrix4x4fMath.slerpRot(t, a, b, curCameraMatrix);
+			Matrix4x4fMath.copyFourthRow(b, curCameraMatrix);
+
+			if (preview){
+				cameraPreview.setMatrix(curCameraMatrix);
+			}
+			else{
+				flyView.setCameraMatrix(curCameraMatrix);
+			}
+		}
+		
+		if (preview || !waitForTrigger){ // If waiting for trigger, will keep timer at 0 to prevent start of flight
+			timer = timer + tick;
+		}
+	}
+
 	private void handleFlyView(float tick){
 		if (preflight){ // Show preflight countdown
 			if (timer >= 4.f){
@@ -361,52 +442,13 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			timer = timer + tick;
 		}
 		else if (flying){ // Waypoint flights
-			if (curWaypoint == waypoints.size() - 1){ // End flight
-				// Do nothing; wait for player to leave fly view
-			}
-			else if (timer >= flyTimes[curWaypoint]){ // Next segment
-				timer = 0.f;
-				// Store the current camera matrix (after LERP'ing) to be used as the next flight's starting waypoint
-				// because, due to small floating point calculation errors, the current matrix will slightly differ
-				// from the true next waypoint matrix. Just using the next waypoint matrix causes a jerk in animation.
-				prevCameraMatrix = curCameraMatrix.dup();
-				curWaypoint++;
-			}
-			else{ // Flying segment
-				Matrix4x4f a = (curWaypoint == 0) ? (Matrix4x4f) waypoints.elementAt(0) : prevCameraMatrix;
-				Matrix4x4f b = (Matrix4x4f) waypoints.elementAt(curWaypoint + 1);
-				// Calculate t
-				float t;
-				if (isWaypointSoft(a)){
-					if (isWaypointSoft(b)){ // Soft to soft
-						t = timer/flyTimes[curWaypoint]; // Linear: y = x
-					}
-					else{ // Soft to hard
-						t = (float) (-Math.pow((timer/flyTimes[curWaypoint])-1, 2) + 1); // Parabolic: y = -(x-1)^2 + 1
-					}
-				}
-				else{
-					if (isWaypointSoft(b)){ // Hard to soft
-						t = (timer/flyTimes[curWaypoint])*(timer/flyTimes[curWaypoint]); // Parabolic: y = x^2
-					}
-					else{ // Hard to hard
-						t = (float) Tools.switchRampC2((double) flyTimes[curWaypoint], 1, (double) flyTimes[curWaypoint]/2, (double) timer); // Cubic -> Inverse Cubic
-					}
-				}
-				Matrix4x4fMath.lerpTrans(t, a, b, curCameraMatrix);
-				Matrix4x4fMath.slerpRot(t, a, b, curCameraMatrix);
-				Matrix4x4fMath.copyFourthRow(b, curCameraMatrix);
-				flyView.setCameraMatrix(curCameraMatrix);
-			}
-			
-			if (!waitForTrigger){ // If waiting for trigger, will keep timer at 0 to prevent start of flight
-				timer = timer + tick;
-			}
+			doWaypointFlights(tick, false);
 		}
 		else{ // Setup and start flight
 			timer = 0.f;
 			curWaypoint = 0;
 			sco.setElementsVisible(false);
+			flyView.setCameraMatrix((Matrix4x4f) waypoints.elementAt(0));
 			if (coasterTrigger != null){
 				flying = true;
 				waitForTrigger = true;
@@ -418,21 +460,6 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				preflight = true;
 				countdown.setMatrix((Matrix4x4f) waypoints.elementAt(0));
 				countdown.setVisible(true);
-			}
-			
-			// Setup fly times between waypoints (dependent if static or averaged)
-			float totalDist = 0.f;
-			flyTimes = new float[waypoints.size()-1];
-			for (int i = 0; averageFlyTimes && i < waypoints.size()-1; i++){ // Get total distance between waypoints if averaging fly times
-				totalDist += Matrix4x4fMath.distance((Matrix4x4f) waypoints.elementAt(i), (Matrix4x4f) waypoints.elementAt(i+1));
-			}
-			for (int i = 0; i < waypoints.size()-1; i++){ // Set fly times between waypoints (dependent if static or averaged)
-				if (averageFlyTimes){
-					flyTimes[i] = Matrix4x4fMath.distance((Matrix4x4f) waypoints.elementAt(i), (Matrix4x4f) waypoints.elementAt(i+1)) / totalDist * (flyTime * flyTimes.length); // Dist % * Total Time
-				}
-				else{
-					flyTimes[i] = flyTime;
-				}
 			}
 		}
 	}
@@ -454,10 +481,12 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			if (preflight || flying){ // Player just left fly view
 				preflight = false;
 				flying = false;
+				timer = 0.f;
+				curWaypoint = 0;
 				printInstructions();
 			}
 			handleButtonPress(tick);
-			updatePreviewCameras();
+			updatePreviewCameras(tick);
 		}
 	}
 	
