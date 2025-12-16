@@ -292,7 +292,7 @@ public class Matrix4x4fMath{
 	 * @param qb Second Matrix4x4f.
 	 * @param out The Matrix4x4f to store the result in.
 	 */
-	public static void slerpRot(double t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f out){
+	public static void slerpRot(float t, Matrix4x4f a, Matrix4x4f b, Matrix4x4f out){
 		// Convert rotation matrices to quaternions
 		Vector4f qa = matrixToQuaternion(a);
 		Vector4f qb = matrixToQuaternion(b);
