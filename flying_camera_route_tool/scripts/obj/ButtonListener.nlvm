@@ -13,60 +13,61 @@ package obj;
 import com.nolimitscoaster.Button;
 
 public class ButtonListener{
+    public static final int MOVE_FORWARD =      1;  // W key by default
+    public static final int MOVE_BACKWARD =     2;  // S key by default
+    public static final int MOVE_LEFT =         4;  // A key by default
+    public static final int MOVE_RIGHT =        8;  // D key by default
+    public static final int MOVE_UP =           16;  // Space key by default
+    public static final int MOVE_DOWN =         32;  // X key by default
+    public static final int ACTION =            64;  // Left Mouse Button by default
+    public static final int NEXT_TRAIN =        128;  // T key by default
+    public static final int NEXT_CAR =          256;  // C key by default
+    public static final int NEXT_SEAT =         512; // V key by default
+    public static final int CHANGE_VIEW_MODE =  1024; // Q key by default
+    public static final int FLY_FASTER =        2048; // Shift key by default
+    public static final int FLY_SLOWER =        4096; // Ctrl key by default
+    
     // "Dictionary" of NL2 Button ints (with indices as keys) to binary flags.
     // Index 0 is unused because NL2 Button ints start at 1.
-    private static final short[] buttonDict = {
-        0,
-        0b0000000000001,
-        0b0000000000010,
-        0b0000000000100,
-        0b0000000001000,
-        0b0000000010000,
-        0b0000000100000,
-        0b0000001000000,
-        0b0000010000000,
-        0b0000100000000,
-        0b0001000000000,
-        0b0010000000000,
-        0b0100000000000,
-        0b1000000000000
-    }
-    public static final short ACTION =            buttonDict[7];  // Left Mouse Button by default
-    public static final short CHANGE_VIEW_MODE =  buttonDict[11]; // Q key by default
-    public static final short FLY_FASTER =        buttonDict[12]; // Shift key by default
-    public static final short FLY_SLOWER =        buttonDict[13]; // Ctrl key by default
-    public static final short MOVE_BACKWARD =     buttonDict[2];  // S key by default
-    public static final short MOVE_DOWN =         buttonDict[6];  // X key by default
-    public static final short MOVE_FORWARD =      buttonDict[1];  // W key by default
-    public static final short MOVE_LEFT =         buttonDict[3];  // A key by default
-    public static final short MOVE_RIGHT =        buttonDict[4];  // D key by default
-    public static final short MOVE_UP =           buttonDict[5];  // Space key by default
-    public static final short NEXT_CAR =          buttonDict[9];  // C key by default
-    public static final short NEXT_SEAT =         buttonDict[10]; // V key by default
-    public static final short NEXT_TRAIN =        buttonDict[8];  // T key by default
+    private static final int[] BUTTON_DICT = {
+        0,                  // 0b0000000000000
+        MOVE_FORWARD,       // 0b0000000000001
+        MOVE_BACKWARD,      // 0b0000000000010
+        MOVE_LEFT,          // 0b0000000000100
+        MOVE_RIGHT,         // 0b0000000001000
+        MOVE_UP,            // 0b0000000010000
+        MOVE_DOWN,          // 0b0000000100000
+        ACTION,             // 0b0000001000000
+        NEXT_TRAIN,         // 0b0000010000000
+        NEXT_CAR,           // 0b0000100000000
+        NEXT_SEAT,          // 0b0001000000000
+        CHANGE_VIEW_MODE,   // 0b0010000000000
+        FLY_FASTER,         // 0b0100000000000
+        FLY_SLOWER          // 0b1000000000000
+    };
 
     private bool pressed = false;
     private float timer, timeout = 0.f;
-    private short timeoutIgnoreButtons = 0b0000000000000;
+    private int timeoutButtons = 8191; // Default: All buttons = 0b1111111111111
 
     public ButtonListener(float timeout){
         this.timeout = timeout;
     }
 
-    public ButtonListener(float timeout, short timeoutIgnoreButtons){
+    public ButtonListener(float timeout, int timeoutButtons){
         this(timeout);
-        this.timeoutIgnoreButtons = timeoutIgnoreButtons;
+        this.timeoutButtons = timeoutButtons;
     }
 
-    public short getPressed(){
-        short bitPressed = 0;
+    public int getPressed(){
+        int bitPressed = 0;
         if (pressed) return bitPressed;
 
-        for (int i = 1; i < buttonDict; i++){
+        for (int i = 1; i < BUTTON_DICT.length; i++){
             if (Button.isPressed(i)){
-                bitPressed |= buttonDict[i]; // Add flag to bitmask
-                // Bitwise check if flag does not appear in ignored button bitmask
-                if (timeoutIgnoreButtons & buttonDict[i] == 0){
+                bitPressed |= BUTTON_DICT[i]; // Add flag to bitmask
+                // Bitwise check if flag appears in timeout-monitored buttons bitmask
+                if ( (timeoutButtons & BUTTON_DICT[i]) > 0 ){
                     pressed = true;
                 }
             }

@@ -26,7 +26,6 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	protected String SCRIPT_NAME = "Flying Camera Route Tool";						// Script name for debugging
 	protected String CAMERA_ELEM_PREFIX = "camera";									// Prefix of camera element names
 	protected String COUNTDOWN_ELEM_NAME = "countdown";								// Name of countdown element
-	private static final float BUTTON_TIMEOUT = 0.25f;								// Time before accepting another button press (ie. button is held down)
 	private static final Vector4f START_COLOR = new Vector4f(0.f, 0.9f, 0.f, 1.f);	// Color of the start preview camera
 	private static final Vector4f HARD_COLOR = new Vector4f(0.75f, 0.f, 1.f, 1.f);	// Color of hard waypoint preview cameras
 	private static final Vector4f SOFT_COLOR = new Vector4f(0.f, 0.75f, 1.f, 1.f);	// Color of soft waypoint preview cameras
@@ -36,6 +35,12 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	private static final int CAM_IND_SOFT_A = 3;									// Camera indicator texture index for Soft A
 	private static final int CAM_IND_SOFT_B = 4;									// Camera indicator texture index for Soft B
 	private static final int CAM_IND_PREVIEW = 5;									// Camera indicator texture index for Preview
+	private static final float BUTTON_TIMEOUT = 0.25f;								// Time before accepting another button press (ie. button is held down)
+	private static final int TIMEOUT_BUTTONS = 										// Bitmask of buttons to monitor for timeout purposes
+		ButtonListener.NEXT_CAR |
+		ButtonListener.NEXT_SEAT |
+		ButtonListener.NEXT_TRAIN |
+		ButtonListener.ACTION;
 	
 	private float FLY_TIME_INCR = 1.f;												// Default fly time increment (gets set once during init)
 	private float ROLL_BUTTON_TIMEOUT = 0.001f;										// Default time before accepting another key press for rolling camera (gets set once during init)
@@ -82,7 +87,7 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		// Get rotation increment value from parameter
 		Double rotationIncrParam = sco.getDoubleParameter("rotation_incr");
 		if (rotationIncrParam != null && rotationIncrParam.floatValue() != 0){
-			ROLL_BUTTON_TIMEOUT = CLICK_TIMEOUT;
+			ROLL_BUTTON_TIMEOUT = BUTTON_TIMEOUT;
 			ROTATION_INCR = (float) Math.toRadians(Math.abs(rotationIncrParam.doubleValue()));
 		}
 		// Get coaster trigger from parameter if specified
@@ -104,14 +109,8 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 		cameraPreview = SceneObjectTools.getElementForName(sco, CAMERA_ELEM_PREFIX + 3, SCRIPT_NAME);
 		countdown = SceneObjectTools.getElementForName(sco, COUNTDOWN_ELEM_NAME, SCRIPT_NAME);
 		// Setup Button Listeners
-		funcButtons = new ButtonListener(
-			BUTTON_TIMEOUT,
-			ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER
-		);
-		rollButtons = new ButtonListener(
-			ROLL_BUTTON_TIMEOUT,
-			ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER
-		);
+		funcButtons = new ButtonListener(BUTTON_TIMEOUT, TIMEOUT_BUTTONS);
+		rollButtons = new ButtonListener(ROLL_BUTTON_TIMEOUT, TIMEOUT_BUTTONS);
 		// Setup External Ride View
 		flyView = sim.createExternalRideView();
 		flyView.setLabel(SCRIPT_NAME);
@@ -235,10 +234,10 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			Matrix4x4f waypointMatrix = (Matrix4x4f) waypoints.elementAt(index);
 			Vector3f waypointEuler = Matrix4x4fMath.matrixToEuler(waypointMatrix);
 			if (left){
-				waypointEuler.z -= ROTATION_INCR;
+				waypointEuler.z += ROTATION_INCR;
 			}
 			else{
-				waypointEuler.z += ROTATION_INCR;
+				waypointEuler.z -= ROTATION_INCR;
 			}
 			Matrix4x4fMath.eulerToMatrix(waypointEuler, waypointMatrix);
 			waypoints.setElementAt(waypointMatrix, index); // Write the new matrix back to the waypoint list
@@ -246,7 +245,10 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 	}
 
 	private void handleButtonPress(float tick){
-		switch (funcButtons.getPressed()){
+		switch (
+			funcButtons.getPressed() &
+			(TIMEOUT_BUTTONS | ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER) // Only check these buttons
+		){
 			// Place waypoints
 			case ButtonListener.NEXT_CAR: // C
 				addWaypoint(false);
@@ -269,7 +271,9 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			
 			// Change time between waypoints
 			case ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER | ButtonListener.NEXT_CAR: // Ctrl + Shift + C
-				flyTime -= FLY_TIME_INCR;
+				if (flyTime - FLY_TIME_INCR > 0){
+					flyTime -= FLY_TIME_INCR;
+				}
 				printInstructions();
 				break;
 			case ButtonListener.FLY_SLOWER | ButtonListener.FLY_FASTER | ButtonListener.NEXT_SEAT: // Ctrl + Shift + V
