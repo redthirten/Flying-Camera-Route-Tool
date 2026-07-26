@@ -449,11 +449,12 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 			else{
 				flyView.setCameraMatrix(curCameraMatrix);
 			}
-		}
 		
-		// If waiting for trigger, will keep timer at 0 to prevent start of flight
-		if (preview || !waitForTrigger){
-			timer = timer + tick;
+			// Advance timer
+			// If waiting for trigger, will keep timer at 0 to prevent start of flight
+			if (preview || !waitForTrigger){
+				timer = timer + tick;
+			}
 		}
 	}
 
@@ -465,8 +466,10 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				flying = true;
 				timer = 0.f;
 			}
-			countdown.setTextureAnimationIndex((int) Math.floor((double) timer));
-			timer = timer + tick;
+			else{
+				countdown.setTextureAnimationIndex((int) Math.floor((double) timer));
+				timer = timer + tick;
+			}
 		}
 		else if (flying){ // Waypoint flights
 			doWaypointFlights(tick, false);
@@ -498,7 +501,9 @@ public class FlyingCameraRouteTool extends Script implements TrackTriggerListene
 				printInstructions();
 				firstInstructionsPrinted = true;
 			}
-			timer = timer + tick;
+			else{
+				timer = timer + tick;
+			}
 		}
 
 		if (flyView.isActive()){ // Player is in fly view

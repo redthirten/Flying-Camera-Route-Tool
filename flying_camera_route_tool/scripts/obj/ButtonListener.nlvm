@@ -82,7 +82,9 @@ public class ButtonListener{
                 timer = 0.f;
                 pressed = false;
             }
-			timer = timer + tick;
+            else{
+			    timer = timer + tick;
+            }
         }
     }
 }
